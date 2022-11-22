@@ -192,9 +192,10 @@ app.get('/check', (req, res) => {
 	}
 });
 
-app.get('/masterList', (req, res) => {
-	res.setHeader("Content-Type", "application/json").send(JSON.stringify(masterList));
-});
+// Commented out because it could be abused, not that the serverList API couldnt be abused anyway
+// app.get('/masterList', (req, res) => {
+// 	res.setHeader("Content-Type", "application/json").send(JSON.stringify(masterList));
+// });
 
 app.get('/serverList', (req, res) => {
 	res.setHeader("Content-Type", "application/json").send(JSON.stringify(serverList));
@@ -205,7 +206,6 @@ app.get('/', (req, res) => {
 	res.setHeader("Content-Type", "application/json").send(JSON.stringify({
 		"endpoints": [
 			"/check?address=IP:PORT",
-			"/masterList",
 			"/serverList"
 		]
 	}));
