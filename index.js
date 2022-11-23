@@ -145,7 +145,7 @@ function updateServerList() {
 };
 
 // Update master list every 5 minutes
-setInterval(updateMasterList, 30 * 1000);
+setInterval(updateMasterList, 60 * 1000);
 updateMasterList();
 
 app.get('/check', (req, res) => {
