@@ -59,6 +59,16 @@ function checkVersion(version) {
 	}
 };
 
+function objectLength(object) {
+	var length = 0;
+	for (var key in object) {
+		if (object.hasOwnProperty(key)) {
+			++length;
+		}
+	}
+	return length;
+};
+
 // checkServer function
 function checkServer(address) {
 	Steam.queryGameServerInfo(address).then(data => {
@@ -198,6 +208,8 @@ app.get('/check', (req, res) => {
 // });
 
 app.get('/serverList', (req, res) => {
+	serverList.serverCount = objectLength(serverList.servers);
+	serverList.erroredCount = objectLength(serverList.errored);
 	res.setHeader("Content-Type", "application/json").send(JSON.stringify(serverList));
 });
 
