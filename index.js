@@ -48,17 +48,6 @@ function splitKeyword(keyword) {
 	}
 };
 
-const latestVer = "v1.6.7"
-
-// Check version and set console log color if outdated
-function checkVersion(version) {
-	if (version == latestVer) {
-		return colors.green(version)
-	} else {
-		return colors.red(version)
-	}
-};
-
 function objectLength(object) {
 	var length = 0;
 	for (var key in object) {
@@ -128,6 +117,7 @@ var highestVersion = "v0.0.0";
 
 // findHighestVersion function
 function findHighestVersion() {
+	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Finding highest version...`);
 	for (var key in serverList.servers) {
 		if (serverList.servers.hasOwnProperty(key)) {
 			if (serverList.servers[key].version > highestVersion) {
@@ -135,7 +125,44 @@ function findHighestVersion() {
 			}
 		}
 	}
+	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Highest version is ${highestVersion}`);
 	return highestVersion;
+};
+
+var outdatedServers = 0;
+
+// countOutdatedServers function, counts servers that are outdated
+function countOutdatedServers() {
+	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Counting outdated servers, latest version is ${highestVersion}`);
+	outdatedServers = 0;
+	for (var key in serverList.servers) {
+		if (serverList.servers.hasOwnProperty(key)) {
+			if (serverList.servers[key].version != highestVersion) {
+				outdatedServers++;
+			}
+		}
+	}
+	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} ${outdatedServers} servers are outdated!`);
+	return outdatedServers;
+};
+
+
+var versions = {};
+
+// Track server versions
+function countVersions() {
+	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Counting server versions...`);
+	for (var key in serverList.servers) {
+		if (serverList.servers.hasOwnProperty(key)) {
+			if (versions[serverList.servers[key].version] == undefined) {
+				versions[serverList.servers[key].version] = 1;
+			} else {
+				versions[serverList.servers[key].version] += 1;
+			}
+		}
+	}
+	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} ${objectLength(versions)} versions found!`);
+	return versions;
 };
 
 // updateMasterList function
@@ -166,7 +193,9 @@ function updateServerList() {
 		serverList.lastUpdated = new Date();
 	}
 	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Got server list!`);
-	findHighestVersion();
+	setTimeout(findHighestVersion, 1000);
+	setTimeout(countVersions, 1000);
+	setTimeout(countOutdatedServers, 1000);
 };
 
 // Update master list every 5 minutes
@@ -224,8 +253,10 @@ app.get('/check', (req, res) => {
 
 app.get('/serverList', (req, res) => {
 	serverList.serverCount = objectLength(serverList.servers);
-	serverList.erroredCount = objectLength(serverList.errored);
 	serverList.highestVersion = findHighestVersion();
+	serverList.outdatedServers = countOutdatedServers();
+	serverList.versions = countVersions();
+	serverList.erroredCount = objectLength(serverList.errored);
 	res.setHeader("Content-Type", "application/json").send(JSON.stringify(serverList));
 });
 
