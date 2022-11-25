@@ -124,6 +124,20 @@ var serverList = {
 	errored: {}
 }
 
+var highestVersion = "v0.0.0";
+
+// findHighestVersion function
+function findHighestVersion() {
+	for (var key in serverList.servers) {
+		if (serverList.servers.hasOwnProperty(key)) {
+			if (serverList.servers[key].version > highestVersion) {
+				highestVersion = serverList.servers[key].version;
+			}
+		}
+	}
+	return highestVersion;
+};
+
 // updateMasterList function
 function updateMasterList() {
 	// Get master list
@@ -152,6 +166,7 @@ function updateServerList() {
 		serverList.lastUpdated = new Date();
 	}
 	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Got server list!`);
+	findHighestVersion();
 };
 
 // Update master list every 5 minutes
@@ -210,6 +225,7 @@ app.get('/check', (req, res) => {
 app.get('/serverList', (req, res) => {
 	serverList.serverCount = objectLength(serverList.servers);
 	serverList.erroredCount = objectLength(serverList.errored);
+	serverList.highestVersion = findHighestVersion();
 	res.setHeader("Content-Type", "application/json").send(JSON.stringify(serverList));
 });
 
