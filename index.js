@@ -152,6 +152,7 @@ var versions = {};
 // Track server versions
 function countVersions() {
 	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Counting server versions...`);
+	versions = {};
 	for (var key in serverList.servers) {
 		if (serverList.servers.hasOwnProperty(key)) {
 			if (versions[serverList.servers[key].version] == undefined) {
