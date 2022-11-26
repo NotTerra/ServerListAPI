@@ -40,11 +40,19 @@ function splitKeyword(keyword) {
 		default:
 			break;
 	}
-	return {
-		"version": data[0],
-		dlcString,
-		dlc: data[1],
-		"tps": data[2]
+	if (data[0] >= "v1.3.0") {
+		return {
+			"version": data[0],
+			dlcString,
+			dlc: data[1],
+			"tps": data[2]
+		}
+	} else { // For older versions
+		console.log(`${colors.magenta(`[DEBUG ${new Date()}]`)} Absolutely ancient server found, ${data}`);
+		return {
+			"version": data[0],
+			"tps": data[1]
+		}
 	}
 };
 
@@ -218,6 +226,13 @@ app.get('/check', (req, res) => {
 		console.log(`${colors.cyan(`[INFO ${new Date()}]`)} ${req.headers["user-agent"]}@${req.ip} requested check server ${req.query.address}`);
 		console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Checking server ${req.query.address}`);
 		Steam.queryGameServerInfo(req.query.address).then(data => {
+			// Check if server is not running Stormworks, in which case, someone is trying to be funny
+			if (data.appid != 573090) {
+				res.status(418).send({
+					"error": "A server was found, but it is not running Stormworks"
+				});
+				return;
+			}
 			data.keywords.split("-")
 			data.address = req.query.address.split(":");
 			data.serverInfo = splitKeyword(data.keywords);
@@ -272,4 +287,6 @@ app.get('/', (req, res) => {
 });
 
 
-app.listen(port, () => console.log(`Listening on port ${port}!`));
+app.listen(port, () => {
+	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Server started on port ${port}`);
+});
