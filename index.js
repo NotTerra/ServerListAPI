@@ -286,6 +286,10 @@ app.get('/', (req, res) => {
 	}));
 });
 
+// Basic robots.txt, deny all
+app.get('/robots.txt', (req, res) => {
+	res.send("User-agent: *\nDisallow: /");
+});
 
 app.listen(port, () => {
 	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Server started on port ${port}`);
