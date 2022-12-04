@@ -25,6 +25,7 @@ var masterList = {
 };
 
 var serverList = {
+	serviceStarted: new Date(),
 	serverCount: 0,
 	highestVersion: "0.0.0",
 	outdatedServers: 0,
