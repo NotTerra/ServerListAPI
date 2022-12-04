@@ -1,8 +1,41 @@
+/*
+
+Some foreword:
+This code is a mess, I know, but it works. Eventually I'll clean it up, probably in some big rewrite.
+That in itself is pretty ironic, considering this could be used for some sort of server browser, where reliability is key, but I digress.
+
+I'll try to comment it as best as I can, but I'm not the best at explaining things.
+
+- Chris Chrome
+
+*/
+
+
 const Steam = require("steam-server-query")
 const express = require('express');
 const colors = require("colors");
 const app = express();
 const port = 3004;
+
+// Define objects (Need to finish moving objects up here)
+
+var masterList = {
+	lastUpdated: new Date(),
+	servers: []
+};
+
+var serverList = {
+	serverCount: 0,
+	highestVersion: "0.0.0",
+	outdatedServers: 0,
+	versions: {},
+	erroredCount: 0,
+	lastUpdated: new Date(),
+	servers: {},
+	errored: {},
+	offline: {}
+}
+
 
 BigInt.prototype.toJSON = function () {
 	return this.toString()
@@ -56,6 +89,28 @@ function splitKeyword(keyword) {
 	}
 };
 
+function countdown(seconds, start, end) {
+	return new Promise((resolve, reject) => {
+		var i = seconds;
+		var interval = setInterval(() => {
+			process.stdout.clearLine();
+			process.stdout.cursorTo(0);
+			// send newline on first iteration
+			if (i == seconds) {
+				process.stdout.write(`${start}${i}${end}\n`);
+			} else if (i < 0) {
+				process.stdout.write(`${start}${i}${end}\n`);
+				clearInterval(interval);
+				resolve();
+			} else {
+				process.stdout.write(`${start}${i}${end}`);
+			}
+			
+			i--;
+		}, 1000);
+	});
+}
+
 function objectLength(object) {
 	var length = 0;
 	for (var key in object) {
@@ -87,6 +142,14 @@ function checkServer(address) {
 			"gameId": data.gameId,
 			"lastUpdated": new Date()
 		}
+		// Check if server is in errored list or offline list, if so, remove it
+		if (serverList.errored[address]) {
+			delete serverList.errored[address];
+		}
+		if (serverList.offline[address]) {
+			delete serverList.offline[address];
+		}
+		// Add server to server list
 		serverList.servers[address] = output;
 		return output;
 	}).catch((err) => {
@@ -107,18 +170,6 @@ function checkServer(address) {
 		serverList.errored[address] = output;
 		return output;
 	});
-}
-
-
-var masterList = {
-	lastUpdated: new Date(),
-	servers: []
-};
-
-var serverList = {
-	lastUpdated: new Date(),
-	servers: {},
-	errored: {}
 }
 
 var highestVersion = "v0.0.0";
@@ -190,6 +241,11 @@ function updateMasterList() {
 	}).catch((err) => {
 		console.log(`${colors.red(`[ERROR ${new Date()}]`)} Error updating master list: ${err}`);
 	});
+
+	// Start the next countdown
+	countdown(60, `${colors.cyan(`[INFO ${new Date()}]`)} Updating master list in `, " seconds").then(() => {
+		updateMasterList();
+	});
 }
 
 // updateServerList function
@@ -202,13 +258,38 @@ function updateServerList() {
 		serverList.lastUpdated = new Date();
 	}
 	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Got server list!`);
-	setTimeout(findHighestVersion, 1000);
-	setTimeout(countVersions, 1000);
-	setTimeout(countOutdatedServers, 1000);
+	setTimeout(() => {
+		purgeDeadServers();
+		serverList.serverCount = objectLength(serverList.servers);
+		serverList.highestVersion = findHighestVersion();
+		serverList.outdatedServers = countOutdatedServers();
+		serverList.versions = countVersions();
+		serverList.erroredCount = objectLength(serverList.errored);
+	}, 1500);
 };
 
-// Update master list every 5 minutes
-setInterval(updateMasterList, 60 * 1000);
+// purgeDeadServers function, moves dead servers to offline list
+function purgeDeadServers() {
+	let counter = 0;
+	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Purging dead servers...`);
+	for (var key in serverList.servers) {
+		if (serverList.servers.hasOwnProperty(key)) {
+			if (serverList.servers[key].lastUpdated < new Date(new Date().getTime() - 60000)) {
+				serverList.offline[key] = serverList.servers[key];
+				delete serverList.servers[key];
+				console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Server ${key} is offline!`);
+				// If server somehow got into errored list, remove it
+				if (serverList.errored[key]) {
+					delete serverList.errored[key];
+				}
+				counter++;
+			}
+		}
+	}
+	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Purged ${counter} dead servers!`);
+}
+
+// Update master list every 1 minute
 updateMasterList();
 
 app.get('/check', (req, res) => {
@@ -251,6 +332,14 @@ app.get('/check', (req, res) => {
 				"gameId": data.gameId,
 				"lastUpdated": new Date()
 			}
+			// Check if server is in errored list or offline list, if so, remove it
+			if (serverList.errored[address]) {
+				delete serverList.errored[address];
+			}
+			if (serverList.offline[address]) {
+				delete serverList.offline[address];
+			}
+			// Add server to server list
 			serverList.servers[req.query.address] = output;
 			res.setHeader("Content-Type", "application/json").send(JSON.stringify(output));
 		}).catch(err => {
@@ -268,11 +357,6 @@ app.get('/check', (req, res) => {
 // });
 
 app.get('/serverList', (req, res) => {
-	serverList.serverCount = objectLength(serverList.servers);
-	serverList.highestVersion = findHighestVersion();
-	serverList.outdatedServers = countOutdatedServers();
-	serverList.versions = countVersions();
-	serverList.erroredCount = objectLength(serverList.errored);
 	res.setHeader("Content-Type", "application/json").send(JSON.stringify(serverList));
 });
 
