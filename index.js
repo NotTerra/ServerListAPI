@@ -89,6 +89,7 @@ function splitKeyword(keyword) {
 	}
 };
 
+// Do not use this function, it's broken for some reason
 function countdown(seconds, start, end) {
 	return new Promise((resolve, reject) => {
 		var i = seconds;
@@ -241,11 +242,6 @@ function updateMasterList() {
 	}).catch((err) => {
 		console.log(`${colors.red(`[ERROR ${new Date()}]`)} Error updating master list: ${err}`);
 	});
-
-	// Start the next countdown
-	countdown(60, `${colors.cyan(`[INFO ${new Date()}]`)} Updating master list in `, " seconds").then(() => {
-		updateMasterList();
-	});
 }
 
 // updateServerList function
@@ -290,6 +286,9 @@ function purgeDeadServers() {
 }
 
 // Update master list every 1 minute
+setInterval(() => {
+	updateMasterList();
+}, 60000);
 updateMasterList();
 
 app.get('/check', (req, res) => {
