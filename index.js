@@ -425,7 +425,8 @@ app.get('/', (req, res) => {
 		},
 		"debug": {
 			"yourIP": req.ip || req.headers["X-Real-IP"],
-			"yourUserAgent": req.headers["user-agent"]
+			"yourUserAgent": req.headers["user-agent"],
+			"yourHeaders": req.headers
 		}
 	}));
 });
