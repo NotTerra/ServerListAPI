@@ -1,0 +1,7 @@
+{
+	"updateInterval": 60,
+	"rateLimiterEnabled": true,
+	"rateLimitWindow": 1,
+	"rateLimitMax": 30,
+	"behindProxy": false
+}

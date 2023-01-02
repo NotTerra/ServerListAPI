@@ -13,6 +13,7 @@ I'll try to comment it as best as I can, but I'm not the best at explaining thin
 
 const Steam = require("steam-server-query")
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const colors = require("colors");
 const semver = require("semver");
 const childProcess = require('child_process');
@@ -342,7 +343,26 @@ setInterval(() => {
 	updateMasterList();
 }, config.updateInterval * 1000);
 updateMasterList();
+if (config.rateLimiterEnabled) {
+	app.use(rateLimit({
+		windowMs: config.rateLimitWindow * 60 * 1000, // X minutes
+		max: config.rateLimitMax, // limit each IP to X requests per windowMs.
+		keyGenerator: function (req) {
+			return config.behindProxy ? req.headers['x-real-ip'] : req.ip;
+		},
+		skipFailedRequests: true,
+		handler: function (req, res /*, next*/ ) {
+			const remainingTime = Math.round((req.rateLimit.resetTime - Date.now()) / 1000);
+			res.status(429).json({
+				error: 'Too Many Requests',
+				message: `You have exceeded the rate limit. Please try again in ${remainingTime} seconds.`,
+				remainingTime: remainingTime
+			});
+			console.log(`${colors.red(`[ERROR ${new Date()}]`)} ${req.headers["user-agent"]}@${req.ip} exceeded rate limit!`);
+		}
 
+	}));
+}
 app.get('/check', (req, res) => {
 	// Check that all required parameters are present
 	if (!req.query.address) {
@@ -423,6 +443,8 @@ app.get('/', (req, res) => {
 			"repo": "https://github.com/TerraDevelopers/TerraStatusAPI",
 			"commit": getGitCommitDetails()
 		},
+		// Rate limit X requests per Y minutes per IP, as a string
+		"rateLimit": `${config.rateLimitMax} requests per ${config.rateLimitWindow} minutes`,
 		"debug": {
 			// "yourIP" Either the IP of the user, or the IP of the proxy if one is used, proxy IP header is x-real-ip
 			"yourIP": req.headers["x-real-ip"] || req.ip,
