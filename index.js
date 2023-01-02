@@ -17,6 +17,7 @@ const colors = require("colors");
 const semver = require("semver");
 const app = express();
 const port = 3004;
+const config = require("./config.json");
 
 // Define objects (Need to finish moving objects up here)
 
@@ -28,7 +29,8 @@ var masterList = {
 var serverList = {
 	serviceStarted: new Date(),
 	serverCount: 0,
-	highestVersion: "0.0.0",
+	highestVersion: "v0.0.0",
+	lowestVersion: "v999.999.999",
 	outdatedServers: 0,
 	versions: {},
 	erroredCount: 0,
@@ -192,6 +194,23 @@ function findHighestVersion() {
 	return highestVersion;
 }
 
+var lowestVersion = 'v999.999.999';
+
+// findLowestVersion function
+function findLowestVersion() {
+	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Finding lowest version...`);
+	for (const key in serverList.servers) {
+		if (serverList.servers.hasOwnProperty(key)) {
+			const currentVersion = serverList.servers[key].version;
+			if (semver.lt(currentVersion, lowestVersion)) {
+				lowestVersion = currentVersion;
+			}
+		}
+	}
+	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Lowest version is ${lowestVersion}`);
+	return lowestVersion;
+}
+
 var outdatedServers = 0;
 
 // countOutdatedServers function, counts servers that are outdated
@@ -261,6 +280,7 @@ function updateServerList() {
 		purgeDeadServers();
 		serverList.serverCount = objectLength(serverList.servers);
 		serverList.highestVersion = findHighestVersion();
+		serverList.lowestVersion = findLowestVersion();
 		serverList.outdatedServers = countOutdatedServers();
 		serverList.versions = countVersions();
 		serverList.erroredCount = objectLength(serverList.errored);
@@ -291,7 +311,7 @@ function purgeDeadServers() {
 // Update master list every 1 minute
 setInterval(() => {
 	updateMasterList();
-}, 60000);
+}, config.updateInterval * 1000);
 updateMasterList();
 
 app.get('/check', (req, res) => {
