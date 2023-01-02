@@ -364,7 +364,7 @@ if (config.rateLimiterEnabled) {
 			if (req.rateLimit.remaining === 0 && !rateLimiterWarnings.has(ip)) {
 				rateLimiterWarnings.add(ip);
 				console.log(`${colors.red(`[ERROR ${new Date()}]`)} ${req.headers["user-agent"]}@${ip} exceeded rate limit!`);
-				setTimeout(() => rateLimiterWarnings.delete(ip), config.rateLimitWindow * 60 * 1000);
+				setTimeout(() => rateLimiterWarnings.delete(ip), req.rateLimit.resetTime - Date.now());
 			}
 		}
 	}));
