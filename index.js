@@ -424,9 +424,9 @@ app.get('/', (req, res) => {
 			"commit": getGitCommitDetails()
 		},
 		"debug": {
-			"yourIP": req.ip || req.headers["X-Real-IP"],
+			// "yourIP" Either the IP of the user, or the IP of the proxy if one is used, proxy IP header is x-real-ip
+			"yourIP": req.headers["x-real-ip"] || req.ip,
 			"yourUserAgent": req.headers["user-agent"],
-			"yourHeaders": req.headers
 		}
 	}));
 });
