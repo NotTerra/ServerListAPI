@@ -344,6 +344,8 @@ setInterval(() => {
 }, config.updateInterval * 1000);
 updateMasterList();
 if (config.rateLimiterEnabled) {
+	const rateLimiterWarnings = new Set();
+
 	app.use(rateLimit({
 		windowMs: config.rateLimitWindow * 60 * 1000, // X minutes
 		max: config.rateLimitMax, // limit each IP to X requests per windowMs.
@@ -352,18 +354,21 @@ if (config.rateLimiterEnabled) {
 		},
 		skipFailedRequests: true,
 		handler: function (req, res /*, next*/ ) {
+			const ip = config.behindProxy ? req.headers['x-real-ip'] : req.ip;
 			const remainingTime = Math.round((req.rateLimit.resetTime - Date.now()) / 1000);
 			res.status(429).json({
 				error: 'Too Many Requests',
 				message: `You have exceeded the rate limit. Please try again in ${remainingTime} seconds.`,
 				remainingTime: remainingTime
 			});
-			if (!req.rateLimit.remaining) {
-				console.log(`${colors.red(`[ERROR ${new Date()}]`)} ${req.headers["user-agent"]}@${config.behindProxy ? req.headers['x-real-ip'] : req.ip} exceeded rate limit!`);
+			if (req.rateLimit.remaining === 0 && !rateLimiterWarnings.has(ip)) {
+				rateLimiterWarnings.add(ip);
+				console.log(`${colors.red(`[ERROR ${new Date()}]`)} ${req.headers["user-agent"]}@${ip} exceeded rate limit!`);
 			}
 		}
 	}));
 }
+
 
 app.get('/check', (req, res) => {
 	// Check that all required parameters are present
