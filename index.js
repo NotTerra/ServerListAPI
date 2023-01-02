@@ -422,6 +422,10 @@ app.get('/', (req, res) => {
 			"author": "Chris Chrome",
 			"repo": "https://github.com/TerraDevelopers/TerraStatusAPI",
 			"commit": getGitCommitDetails()
+		},
+		"debug": {
+			"yourIP": req.ip,
+			"yourUserAgent": req.headers["user-agent"]
 		}
 	}));
 });
