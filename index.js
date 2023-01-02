@@ -424,7 +424,7 @@ app.get('/', (req, res) => {
 			"commit": getGitCommitDetails()
 		},
 		"debug": {
-			"yourIP": req.headers["X-Real-IP"] || req.ip,
+			"yourIP": req.ip || req.headers["X-Real-IP"],
 			"yourUserAgent": req.headers["user-agent"]
 		}
 	}));
