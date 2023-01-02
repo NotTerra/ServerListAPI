@@ -15,6 +15,7 @@ const Steam = require("steam-server-query")
 const express = require('express');
 const colors = require("colors");
 const semver = require("semver");
+const childProcess = require('child_process');
 const app = express();
 const port = 3004;
 const config = require("./config.json");
@@ -114,6 +115,29 @@ function countdown(seconds, start, end) {
 			i--;
 		}, 1000);
 	});
+}
+
+function getGitCommitDetails() {
+	try {
+		// Use child_process.execSync to run the `git log -1 --format=%H%x09%an%x09%ae%x09%ad%x09%s` command
+		// and return the output as a string
+		const stdout = childProcess.execSync('git log -1 --format=%H%x09%an%x09%ae%x09%ad%x09%s').toString();
+
+		// Split the output string into an array of fields
+		const fields = stdout.split('\t');
+
+		// Return the commit details as a JSON object
+		return {
+			hash: fields[0].substring(0, 7),
+			fullHash: fields[0],
+			author: fields[1],
+			email: fields[2],
+			timestamp: fields[3],
+			subject: fields[4],
+		};
+	} catch (error) {
+		console.error(error);
+	}
 }
 
 function objectLength(object) {
@@ -308,6 +332,11 @@ function purgeDeadServers() {
 	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Purged ${counter} dead servers!`);
 }
 
+// Startup messages
+console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Starting Stormworks Server List...`);
+console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Config: ${JSON.stringify(config)}`);
+console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Commit: ${getGitCommitDetails().hash}`);
+
 // Update master list every 1 minute
 setInterval(() => {
 	updateMasterList();
@@ -388,7 +417,12 @@ app.get('/', (req, res) => {
 		"endpoints": [
 			"/check?address=IP:PORT",
 			"/serverList"
-		]
+		],
+		"about": {
+			"author": "Chris Chrome",
+			"repo": "https://github.com/TerraDevelopers/TerraStatusAPI",
+			"commit": getGitCommitDetails()
+		}
 	}));
 });
 
