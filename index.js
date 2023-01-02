@@ -14,6 +14,7 @@ I'll try to comment it as best as I can, but I'm not the best at explaining thin
 const Steam = require("steam-server-query")
 const express = require('express');
 const colors = require("colors");
+const semver = require("semver");
 const app = express();
 const port = 3004;
 
@@ -107,7 +108,7 @@ function countdown(seconds, start, end) {
 			} else {
 				process.stdout.write(`${start}${i}${end}`);
 			}
-			
+
 			i--;
 		}, 1000);
 	});
@@ -179,16 +180,17 @@ var highestVersion = "v0.0.0";
 // findHighestVersion function
 function findHighestVersion() {
 	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Finding highest version...`);
-	for (var key in serverList.servers) {
+	for (const key in serverList.servers) {
 		if (serverList.servers.hasOwnProperty(key)) {
-			if (serverList.servers[key].version > highestVersion) {
-				highestVersion = serverList.servers[key].version;
+			const currentVersion = serverList.servers[key].version;
+			if (semver.gt(currentVersion, highestVersion)) {
+				highestVersion = currentVersion;
 			}
 		}
 	}
 	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Highest version is ${highestVersion}`);
 	return highestVersion;
-};
+}
 
 var outdatedServers = 0;
 
