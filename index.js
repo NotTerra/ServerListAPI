@@ -358,11 +358,13 @@ if (config.rateLimiterEnabled) {
 				message: `You have exceeded the rate limit. Please try again in ${remainingTime} seconds.`,
 				remainingTime: remainingTime
 			});
-			console.log(`${colors.red(`[ERROR ${new Date()}]`)} ${req.headers["user-agent"]}@${config.behindProxy ? req.headers['x-real-ip'] : req.ip} exceeded rate limit!`);
+			if (!req.rateLimit.remaining) {
+				console.log(`${colors.red(`[ERROR ${new Date()}]`)} ${req.headers["user-agent"]}@${config.behindProxy ? req.headers['x-real-ip'] : req.ip} exceeded rate limit!`);
+			}
 		}
-
 	}));
 }
+
 app.get('/check', (req, res) => {
 	// Check that all required parameters are present
 	if (!req.query.address) {
