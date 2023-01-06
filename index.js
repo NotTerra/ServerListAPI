@@ -157,11 +157,11 @@ function checkServer(address) {
 		data.keywords.split("-")
 		data.address = address.split(":");
 		data.serverInfo = splitKeyword(data.keywords);
-
 		output = {
 			"name": data.name,
 			"address": data.address[0],
 			"port": data.address[1],
+			"password": data.visibility,
 			"version": data.serverInfo.version,
 			"dlc": data.serverInfo.dlc,
 			"dlcString": data.serverInfo.dlcString,
@@ -403,6 +403,7 @@ app.get('/check', (req, res) => {
 				"name": data.name,
 				"address": data.address[0],
 				"port": data.address[1],
+				"password": data.visibility,
 				"version": data.serverInfo.version,
 				"dlc": data.serverInfo.dlc,
 				"dlcString": data.serverInfo.dlcString,
