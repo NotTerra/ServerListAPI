@@ -123,19 +123,22 @@ function getGitCommitDetails() {
 		// Use child_process.execSync to run the `git log -1 --format=%H%x09%an%x09%ae%x09%ad%x09%s` command
 		// and return the output as a string
 		const stdout = childProcess.execSync('git log -1 --format=%H%x09%an%x09%ae%x09%ad%x09%s').toString();
-
+		const origin = childProcess.execSync('git config --get remote.origin.url').toString().trim().replace(/\.git$/, '');
 		// Split the output string into an array of fields
 		const fields = stdout.split('\t');
 
 		// Return the commit details as a JSON object
 		return {
-			hash: fields[0].substring(0, 7),
-			fullHash: fields[0],
-			author: fields[1],
-			email: fields[2],
-			timestamp: fields[3],
-			subject: fields[4],
-		};
+			commit: {
+				hash: fields[0].substring(0, 7),
+				fullHash: fields[0],
+				author: fields[1],
+				email: fields[2],
+				timestamp: fields[3],
+				subject: fields[4]
+			},
+			origin
+		}
 	} catch (error) {
 		console.error(error);
 	}
@@ -454,8 +457,8 @@ app.get('/', (req, res) => {
 		],
 		"about": {
 			"author": "Chris Chrome",
-			"repo": "https://github.com/TerraDevelopers/TerraStatusAPI",
-			"commit": getGitCommitDetails()
+			// Get repo 
+			"repo": getGitCommitDetails()
 		},
 		// Rate limit X requests per Y minutes per IP, as a string
 		"rateLimit": `${config.rateLimitMax} requests per ${config.rateLimitWindow} minutes`,
