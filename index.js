@@ -163,6 +163,7 @@ function checkServer(address) {
 			"port": data.address[1],
 			"password": data.visibility == 1 ? true : false,
 			"version": data.serverInfo.version,
+			"outdated": data.serverInfo.version < serverList.highestVersion ? true : false,
 			"dlc": data.serverInfo.dlc,
 			"dlcString": data.serverInfo.dlcString,
 			"tps": data.serverInfo.tps,
@@ -342,6 +343,9 @@ setInterval(() => {
 	updateMasterList();
 }, config.updateInterval * 1000);
 updateMasterList();
+setTimeout(() => {
+	updateServerList(); // Hacky fix for outdated server check
+}, 5000);
 if (config.rateLimiterEnabled) {
 	const rateLimiterWarnings = new Set();
 
@@ -391,8 +395,6 @@ app.get('/check', (req, res) => {
 					"error": "A server was found, but it is not running Stormworks"
 				});
 				console.log(`${colors.red(`[ERROR ${new Date()}]`)} Server ${req.query.address} is not running Stormworks! (AppID: ${data.appid})`);
-				// debug log all data
-				console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Server data: ${JSON.stringify(data)}`);
 				return;
 			}
 			data.keywords.split("-")
@@ -405,6 +407,7 @@ app.get('/check', (req, res) => {
 				"port": data.address[1],
 				"password": data.visibility == 1 ? false : true,
 				"version": data.serverInfo.version,
+				"outdated": data.serverInfo.version < serverList.highestVersion ? true : false,
 				"dlc": data.serverInfo.dlc,
 				"dlcString": data.serverInfo.dlcString,
 				"tps": data.serverInfo.tps,
@@ -416,10 +419,10 @@ app.get('/check', (req, res) => {
 			}
 			// Check if server is in errored list or offline list, if so, remove it
 			if (serverList.errored[req.query.address]) {
-				delete erroredServers.servers[req.query.address];
+				delete serverList.errored[req.query.address];
 			}
 			if (serverList.offline[req.query.address]) {
-				delete offlineServers.servers[req.query.address];
+				delete serverList.offline[req.query.address];
 			}
 			// Add server to server list
 			serverList.servers[req.query.address] = output;
