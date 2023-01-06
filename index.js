@@ -386,10 +386,13 @@ app.get('/check', (req, res) => {
 		console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Checking server ${req.query.address}`);
 		Steam.queryGameServerInfo(req.query.address).then(data => {
 			// Check if server is not running Stormworks, in which case, someone is trying to be funny
-			if (data.appid != 573090) {
+			if (data.gameId != "573090") {
 				res.status(418).send({
 					"error": "A server was found, but it is not running Stormworks"
 				});
+				console.log(`${colors.red(`[ERROR ${new Date()}]`)} Server ${req.query.address} is not running Stormworks! (AppID: ${data.appid})`);
+				// debug log all data
+				console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Server data: ${JSON.stringify(data)}`);
 				return;
 			}
 			data.keywords.split("-")
@@ -411,11 +414,11 @@ app.get('/check', (req, res) => {
 				"lastUpdated": new Date()
 			}
 			// Check if server is in errored list or offline list, if so, remove it
-			if (serverList.errored[address]) {
-				delete serverList.errored[address];
+			if (serverList.errored[req.query.address]) {
+				delete erroredServers.servers[req.query.address];
 			}
-			if (serverList.offline[address]) {
-				delete serverList.offline[address];
+			if (serverList.offline[req.query.address]) {
+				delete offlineServers.servers[req.query.address];
 			}
 			// Add server to server list
 			serverList.servers[req.query.address] = output;
