@@ -210,8 +210,10 @@ function findHighestVersion() {
 	for (const key in serverList.servers) {
 		if (serverList.servers.hasOwnProperty(key)) {
 			const currentVersion = serverList.servers[key].version;
-			if (semver.gt(currentVersion, highestVersion)) {
-				highestVersion = currentVersion;
+			if (semver.valid(currentVersion)) { // check if currentVersion is a valid semver string
+				if (semver.gt(currentVersion, highestVersion)) {
+					highestVersion = currentVersion;
+				}
 			}
 		}
 	}
@@ -227,8 +229,10 @@ function findLowestVersion() {
 	for (const key in serverList.servers) {
 		if (serverList.servers.hasOwnProperty(key)) {
 			const currentVersion = serverList.servers[key].version;
-			if (semver.lt(currentVersion, lowestVersion)) {
-				lowestVersion = currentVersion;
+			if (semver.valid(currentVersion)) { // check if currentVersion is a valid semver string
+				if (semver.lt(currentVersion, lowestVersion)) {
+					lowestVersion = currentVersion;
+				}
 			}
 		}
 	}
@@ -259,19 +263,14 @@ var versions = {};
 // Track server versions
 function countVersions() {
 	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Counting server versions...`);
-	versions = {};
-	for (var key in serverList.servers) {
-		if (serverList.servers.hasOwnProperty(key)) {
-			if (versions[serverList.servers[key].version] == undefined) {
-				versions[serverList.servers[key].version] = 1;
-			} else {
-				versions[serverList.servers[key].version] += 1;
-			}
-		}
+	const versions = {};
+	for (const key in serverList.servers) {
+		const server = serverList.servers[key];
+		versions[server.version] = (versions[server.version] || 0) + 1;
 	}
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} ${objectLength(versions)} versions found!`);
+	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} ${Object.keys(versions).length} versions found!`);
 	return versions;
-};
+}
 
 // updateMasterList function
 function updateMasterList() {
