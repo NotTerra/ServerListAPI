@@ -199,13 +199,15 @@ function checkServer(address) {
 		data.keywords.split("-")
 		data.address = address.split(":");
 		data.serverInfo = splitKeyword(data.keywords);
+		// Calculate outdated status, cant use less than anymore because of the way semver works and 1.10.0 appears as less than 1.9.9
+		outdated = semver.lt(data.serverInfo.version, serverList.highestVersion) ? true : false;
 		output = {
 			"name": data.name,
 			"address": data.address[0],
 			"port": data.address[1],
 			"password": data.visibility == 1 ? true : false,
 			"version": data.serverInfo.version,
-			"outdated": data.serverInfo.version < serverList.highestVersion ? true : false,
+			"outdated": outdated,
 			"dlc": data.serverInfo.dlc,
 			"dlcString": data.serverInfo.dlcString,
 			"tps": data.serverInfo.tps,
