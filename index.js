@@ -106,19 +106,29 @@ function splitKeyword(keyword) {
 	// 	}
 	// }
 	// Lets redo this to actually work with v1.10.0 and above, still gotta check because versions older than 1.3 dont have DLC, and wont have the right number of fields
-	if (data.length < 3) {
-		return {
-			"version": data[0],
-			"raw": keyword
-		}
-	} else {
-		return {
-			"version": data[0],
-			dlcString,
-			dlc: data[1],
-			"tps": data[2],
-			"raw": keyword
-		}
+	switch (data.length) {
+		case 1:
+			return {
+				"version": data[0]
+			}
+			break;
+		case 2: // Only version and DLC
+			return {
+				"version": data[0],
+				dlcString,
+				dlc: data[1]
+			}
+			break;
+		case 3: // Version, DLC and TPS
+			return {
+				"version": data[0],
+				dlcString,
+				dlc: data[1],
+				"tps": data[2]
+			}
+			break;
+		default:
+			break;
 	}
 };
 
@@ -198,7 +208,6 @@ function checkServer(address) {
 			"outdated": data.serverInfo.version < serverList.highestVersion ? true : false,
 			"dlc": data.serverInfo.dlc,
 			"dlcString": data.serverInfo.dlcString,
-			"rawKWData": data.keywords,
 			"tps": data.serverInfo.tps,
 			"players": data.bots,
 			"maxPlayers": data.maxPlayers,
