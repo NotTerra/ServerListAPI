@@ -198,6 +198,7 @@ function checkServer(address) {
 			"outdated": data.serverInfo.version < serverList.highestVersion ? true : false,
 			"dlc": data.serverInfo.dlc,
 			"dlcString": data.serverInfo.dlcString,
+			"rawKWData": data.keywords,
 			"tps": data.serverInfo.tps,
 			"players": data.bots,
 			"maxPlayers": data.maxPlayers,
