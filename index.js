@@ -91,18 +91,31 @@ function splitKeyword(keyword) {
 		default:
 			break;
 	}
-	if (data[0] >= "v1.3.0") {
+	// if (data[0] >= "v1.3.0") {
+	// 	return {
+	// 		"version": data[0],
+	// 		dlcString,
+	// 		dlc: data[1],
+	// 		"tps": data[2]
+	// 	}
+	// } else { // For older versions
+	// 	console.log(`${colors.magenta(`[DEBUG ${new Date()}]`)} Absolutely ancient server found, ${data}`);
+	// 	return {
+	// 		"version": data[0],
+	// 		"tps": data[1]
+	// 	}
+	// }
+	// Lets redo this to actually work with v1.10.0 and above, still gotta check because versions older than 1.3 dont have DLC, and wont have the right number of fields
+	if (data.length < 3) {
+		return {
+			"version": data[0]
+		}
+	} else {
 		return {
 			"version": data[0],
 			dlcString,
 			dlc: data[1],
 			"tps": data[2]
-		}
-	} else { // For older versions
-		console.log(`${colors.magenta(`[DEBUG ${new Date()}]`)} Absolutely ancient server found, ${data}`);
-		return {
-			"version": data[0],
-			"tps": data[1]
 		}
 	}
 };
