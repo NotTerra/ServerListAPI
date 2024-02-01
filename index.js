@@ -106,6 +106,7 @@ function splitKeyword(keyword) {
 	// 	}
 	// }
 	// Lets redo this to actually work with v1.10.0 and above, still gotta check because versions older than 1.3 dont have DLC, and wont have the right number of fields
+	console.log(`${colors.magenta(`[DEBUG ${new Date()}]`)} Server version is ${data[0]}`);
 	if (data.length < 3) {
 		return {
 			"version": data[0]
