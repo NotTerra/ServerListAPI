@@ -20,7 +20,7 @@ const childProcess = require('child_process');
 const app = express();
 const port = 3004;
 const config = require("./config.json");
-
+const fs = require("fs")
 // Define objects (Need to finish moving objects up here)
 
 var masterList = {
@@ -74,7 +74,19 @@ function splitKeyword(keyword) {
 			dlcString = "Arid"
 			break;
 		case "3":
-			dlcString = "Both"
+			dlcString = "Weapons + Arid"
+			break;
+		case "4":
+			dlcString = "Arid + Space"
+			break;
+		case "5":
+			dlcString = "Weapons + Space"
+			break;
+		case "6":
+			dlcString = "Space"
+			break;
+		case "7":
+			dlcString = "Weapons + Arid + Space"
 			break;
 		default:
 			break;
@@ -157,6 +169,8 @@ function objectLength(object) {
 // checkServer function
 function checkServer(address) {
 	Steam.queryGameServerInfo(address).then(data => {
+		// Write data to file name as server name
+		//fs.writeFileSync(`./servers/srv_${data.name}.json`, JSON.stringify(data, null, 2));
 		data.keywords.split("-")
 		data.address = address.split(":");
 		data.serverInfo = splitKeyword(data.keywords);
@@ -193,7 +207,7 @@ function checkServer(address) {
 			"address": address.split(":")[0],
 			"port": address.split(":")[1],
 			"version": "Unknown",
-			"dlc": null,
+			"dlc": 0,
 			"dlcString": "Unknown",
 			"tps": 0,
 			"players": 0,
