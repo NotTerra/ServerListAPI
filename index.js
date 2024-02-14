@@ -60,6 +60,38 @@ var removeDuplicates = function (nums) {
 };
 servers = [];
 
+// Make DLC bitfield from dlc array, same outputs as splitKeyword in reverse, inputs in an array are 1 = Weapons, 2 = Arid, 3 = Space, figure out the output based on an array of inputs, so an input if [3] would be "6" and so on
+function calculateDLCNumber(array) {
+	array = array.map(Number); // Ensure all are numbers
+	array.sort(); // Sort array to have lowest values first
+
+	if (array.length === 1) {
+		if (array[0] === 1) { // Weapons
+			return "1";
+		} else if (array[0] === 2) { // Arid
+			return "2";
+		} else if (array[0] === 3) { // Space
+			return "6";
+		}
+	} else if (array.length === 2) {
+		if (array.includes(1) && array.includes(2)) { // Weapons + Arid
+			return "3";
+		} else if (array.includes(1) && array.includes(3)) { // Weapons + Space
+			return "5";
+		} else if (array.includes(2) && array.includes(3)) { // Arid + Space
+			return "4";
+		}
+	} else if (array.length === 3) {
+		if (array.includes(1) && array.includes(2) && array.includes(3)) { // Weapons + Arid + Space
+			return "7";
+		}
+	} else {
+		return 0; // Not a valid combination
+	}
+}
+
+
+
 // Keyword split to version, dlcs, tps
 function splitKeyword(keyword) {
 	data = keyword.split("-")
@@ -400,7 +432,7 @@ if (config.rateLimiterEnabled) {
 			return config.behindProxy ? req.headers['x-real-ip'] : req.ip;
 		},
 		skipFailedRequests: true,
-		handler: function (req, res /*, next*/ ) {
+		handler: function (req, res /*, next*/) {
 			const ip = config.behindProxy ? req.headers['x-real-ip'] : req.ip;
 			const remainingTime = Math.round((req.rateLimit.resetTime - Date.now()) / 1000);
 			res.status(429).json({
@@ -486,15 +518,94 @@ app.get('/check', (req, res) => {
 // });
 
 app.get('/serverList', (req, res) => {
-	res.setHeader("Content-Type", "application/json").send(JSON.stringify(serverList));
+	// check if ?filter is present, if so filter servers with other variables like ?uptodate=true or ?version=v1.10.0
+	// make the output variable a copy of serverList, not serverList itself, as to not modify the original object
+	output = JSON.parse(JSON.stringify(serverList));
+
+	filters = req.query;
+	console.log(filters)
+	// valid filters, uptodate, outdated, version, dlc
+	// valid values for version, v1.10.0, v1.9.9, etc
+
+	// valid values for dlc, 0, 1, 2, 3, 1|2, 1|3, 2|3, 1|2|3
+	// uptodate and outdated are just there, but cannot be used together
+	// version and dlc can be used together
+
+	// Do the filters
+	if (filters.uptodate && filters.outdated) {
+		res.status(400).json({
+			"error": "Cannot use uptodate and outdated filters together"
+		})
+		return;
+	}
+	// If version is present, split by = and check if it's a valid version
+	if (filters.version) {
+		versionFilter = filters.version;
+		if (!semver.valid(versionFilter)) {
+			res.status(400).json({
+				"error": "Invalid version"
+			})
+			return;
+		}
+		for (const key in output.servers) {
+			if (output.servers[key].version != versionFilter) {
+				delete output.servers[key];
+			}
+		}
+	}
+	// If dlc is present, split by = and check if it's a valid dlc
+	if (filters.dlc) {
+		dlcFilter = filters.dlc;
+		if (!dlcFilter.match(/^(0|1|2|3|1\|2|1\|3|2\|3|1\|2\|3)$/)) {
+			res.status(400).json({
+				"error": "Invalid dlc"
+			})
+			return;
+		}
+		console.log(calculateDLCNumber(dlcFilter.split("|")))
+		for (const key in output.servers) {
+			if (output.servers[key].dlc != calculateDLCNumber(dlcFilter.split("|"))) {
+				delete output.servers[key];
+			}
+		}
+	}
+	// For all filters, remember that output.servers is an object, so .filter wont work
+	if (filters.uptodate) {
+		console.log("Deleting outdated servers")
+		for (const key in output.servers) {
+			if (output.servers[key].outdated) {
+				console.log(`Deleting ${key}`)
+				delete output.servers[key];
+			}
+		}
+	}
+	// If outdated is present, filter out uptodate servers
+	if (filters.outdated) {
+		for (const key in output.servers) {
+			if (!output.servers[key].outdated) {
+				delete output.servers[key];
+			}
+		}
+	}
+
+	// Return filtered servers
+	output.filteredCount = objectLength(output.servers);
+	if (output.filteredCount == output.serverCount) delete output.filteredCount;
+	res.setHeader("Content-Type", "application/json").send(JSON.stringify(output));
 });
 
+
+
+app.get('/docs', (req, res) => {
+	res.sendFile(__dirname + '/docs.html');
+});
 app.get('/', (req, res) => {
 	// Send list of all endpoints
 	res.setHeader("Content-Type", "application/json").send(JSON.stringify({
 		"endpoints": [
 			"/check?address=IP:PORT",
-			"/serverList"
+			"/serverList",
+			"/docs"
 		],
 		"about": {
 			"author": "Chris Chrome",
