@@ -190,60 +190,65 @@ function objectLength(object) {
 	return length;
 };
 
+// Gets a server list entry for a bad server
+function getBadServer(address, reason) {
+	let [ip_address, port] = address.split(":")
+	return {
+		"error": reason,
+		"name": "Unknown",
+		"address": ip_address,
+		"port": port,
+		"version": "Unknown",
+		"dlc": 0,
+		"dlcString": "Unknown",
+		"tps": 0,
+		"players": 0,
+		"maxPlayers": 0,
+		"map": "Unknown",
+		"gameId": "573090"
+	};
+}
+
 // checkServer function
 function checkServer(address) {
-	Steam.queryGameServerInfo(address).then(data => {
-		// Write data to file name as server name
-		//fs.writeFileSync(`./servers/srv_${data.name}.json`, JSON.stringify(data, null, 2));
-		data.keywords.split("-")
-		data.address = address.split(":");
-		data.serverInfo = splitKeyword(data.keywords);
+	return Steam.queryGameServerInfo(address).then(data => {
+		if (data.gameId != "573090") {
+			return getBadServer(address, "Not a Stormworks server");
+		}
+		let [ip_address, port] = address.split(":");
+		let serverInfo = splitKeyword(data.keywords);
 		// Calculate outdated status, cant use less than anymore because of the way semver works and 1.10.0 appears as less than 1.9.9
-		outdated = semver.lt(data.serverInfo.version, serverList.highestVersion) ? true : false;
-		output = {
+		let outdated = semver.lt(serverInfo.version, serverList.highestVersion);
+		return {
 			"name": data.name,
-			"address": data.address[0],
-			"port": data.address[1],
-			"password": data.visibility == 1 ? true : false,
-			"version": data.serverInfo.version,
+			"address": ip_address,
+			"port": port,
+			"password": data.visibility == 1,
+			"version": serverInfo.version,
 			"outdated": outdated,
-			"dlc": data.serverInfo.dlc,
-			"dlcString": data.serverInfo.dlcString,
-			"tps": data.serverInfo.tps,
+			"dlc": serverInfo.dlc,
+			"dlcString": serverInfo.dlcString,
+			"tps": serverInfo.tps,
 			"players": data.bots,
 			"maxPlayers": data.maxPlayers,
 			"map": data.map,
 			"gameId": data.gameId,
 			"lastUpdated": new Date()
-		}
-		// Check if server is in errored list or offline list, if so, remove it
-		if (serverList.errored[address]) {
-			delete serverList.errored[address];
-		}
-		if (serverList.offline[address]) {
-			delete serverList.offline[address];
-		}
-		// Add server to server list
-		serverList.servers[address] = output;
-		return output;
+		};
 	}).catch((err) => {
-		output = {
-			"error": "Could not connect to server",
-			"name": "Unknown",
-			"address": address.split(":")[0],
-			"port": address.split(":")[1],
-			"version": "Unknown",
-			"dlc": 0,
-			"dlcString": "Unknown",
-			"tps": 0,
-			"players": 0,
-			"maxPlayers": 0,
-			"map": "Unknown",
-			"gameId": "573090"
+		return getBadServer(address, "Could not connect to server");
+	}).then((entry) => {
+		delete serverList.offline[address];
+		//console.log(address, JSON.stringify(entry))
+		if ('error' in entry) {
+			delete serverList.servers[address];
+			serverList.errored[address] = entry;
+		} else {
+			delete serverList.errored[address];
+			serverList.servers[address] = entry;
 		}
-		serverList.errored[address] = output;
-		return output;
-	});
+		return entry
+	});;
 }
 
 var highestVersion = "v0.0.0";
@@ -338,9 +343,9 @@ function updateMasterList() {
 function updateServerList() {
 	// Get every server in master list
 	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Getting server list...`);
-	for (let i = 0; i < masterList.servers.length; i++) {
+	for (let address of masterList.servers) {
 		// Get server info
-		checkServer(masterList.servers[i]);
+		checkServer(address);
 		serverList.lastUpdated = new Date();
 	}
 	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Got server list!`);
@@ -424,55 +429,22 @@ app.get('/check', (req, res) => {
 			"error": "Missing required parameter: address"
 		});
 		return;
-	};
+	}
 	// Regex for IP address : port
+	// Note: this regex may match invalid addresses, like 999.999.999.999:99999
 	const ipRegex = /(?:[0-9]{1,3}\.){3}[0-9]{1,3}:[0-9]{1,5}/;
 	// Check ip argument is valid
 	if (ipRegex.test(req.query.address)) {
 		console.log(`${colors.cyan(`[INFO ${new Date()}]`)} ${req.headers["user-agent"]}@${req.ip} requested check server ${req.query.address}`);
 		console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Checking server ${req.query.address}`);
-		Steam.queryGameServerInfo(req.query.address).then(data => {
-			// Check if server is not running Stormworks, in which case, someone is trying to be funny
-			if (data.gameId != "573090") {
-				res.status(418).send({
-					"error": "A server was found, but it is not running Stormworks"
-				});
-				console.log(`${colors.red(`[ERROR ${new Date()}]`)} Server ${req.query.address} is not running Stormworks! (AppID: ${data.appid})`);
-				return;
+		checkServer(req.query.address).then((data) => {
+			if ("error" in data) {
+				res.status(500).send({
+					"error": data.error
+				})
+			} else {
+				res.setHeader("Content-Type", "application/json").send(JSON.stringify(data));
 			}
-			data.keywords.split("-")
-			data.address = req.query.address.split(":");
-			data.serverInfo = splitKeyword(data.keywords);
-
-			output = {
-				"name": data.name,
-				"address": data.address[0],
-				"port": data.address[1],
-				"password": data.visibility == 1 ? false : true,
-				"version": data.serverInfo.version,
-				"outdated": data.serverInfo.version < serverList.highestVersion ? true : false,
-				"dlc": data.serverInfo.dlc,
-				"dlcString": data.serverInfo.dlcString,
-				"tps": data.serverInfo.tps,
-				"players": data.bots,
-				"maxPlayers": data.maxPlayers,
-				"map": data.map,
-				"gameId": data.gameId,
-				"lastUpdated": new Date()
-			}
-			// Check if server is in errored list or offline list, if so, remove it
-			if (serverList.errored[req.query.address]) {
-				delete serverList.errored[req.query.address];
-			}
-			if (serverList.offline[req.query.address]) {
-				delete serverList.offline[req.query.address];
-			}
-			// Add server to server list
-			serverList.servers[req.query.address] = output;
-			res.setHeader("Content-Type", "application/json").send(JSON.stringify(output));
-		}).catch(err => {
-			console.log(err)
-			res.status(500).send(`Could not query server: ${err}`);
 		});
 	} else {
 		res.status(400).send("Invalid Server Address, must be in the format IP:PORT")
@@ -484,13 +456,21 @@ app.get('/check', (req, res) => {
 // 	res.setHeader("Content-Type", "application/json").send(JSON.stringify(masterList));
 // });
 
+// Filter elements from an object, based on a closure
+function filterObject(object, filter) {
+	for (const key in object) {
+		if (!filter(object[key])) {
+			delete object[key];
+		}
+	}
+}
+
 app.get('/serverList', (req, res) => {
 	// check if ?filter is present, if so filter servers with other variables like ?uptodate=true or ?version=v1.10.0
 	// make the output variable a copy of serverList, not serverList itself, as to not modify the original object
 	output = JSON.parse(JSON.stringify(serverList));
 
 	filters = req.query;
-	console.log(filters)
 	// valid filters, uptodate, outdated, version, dlc
 	// valid values for version, v1.10.0, v1.9.9, etc
 
@@ -507,52 +487,35 @@ app.get('/serverList', (req, res) => {
 	}
 	// If version is present, split by = and check if it's a valid version
 	if (filters.version) {
-		versionFilter = filters.version;
-		if (!semver.valid(versionFilter)) {
+		let versionFilter = filters.version;
+		if (!semver.valid(versionFilter) || !versionFilter.startsWith('v')) {
 			res.status(400).json({
 				"error": "Invalid version"
 			})
 			return;
 		}
-		for (const key in output.servers) {
-			if (output.servers[key].version != versionFilter) {
-				delete output.servers[key];
-			}
-		}
+		console.log(versionFilter);
+		filterObject(output.servers, (server) => server.version === versionFilter);
 	}
 	// If dlc is present, split by = and check if it's a valid dlc
 	if (filters.dlc) {
-		dlcFilter = filters.dlc;
+		let dlcFilter = filters.dlc;
 		if (!dlcFilter.match(/^(0|1|2|3|1\|2|1\|3|2\|3|1\|2\|3)$/)) {
 			res.status(400).json({
 				"error": "Invalid dlc"
 			})
 			return;
 		}
-		console.log(calculateDLCNumber(dlcFilter.split("|")))
-		for (const key in output.servers) {
-			if (output.servers[key].dlc != calculateDLCNumber(dlcFilter.split("|"))) {
-				delete output.servers[key];
-			}
-		}
+		let DLCNumber = calculateDLCNumber(dlcFilter.split("|")) + "";
+		filterObject(output.servers, (server) => server.dlc === DLCNumber);
 	}
 	// For all filters, remember that output.servers is an object, so .filter wont work
 	if (filters.uptodate) {
-		console.log("Deleting outdated servers")
-		for (const key in output.servers) {
-			if (output.servers[key].outdated) {
-				console.log(`Deleting ${key}`)
-				delete output.servers[key];
-			}
-		}
+		filterObject(output.servers, (server) => !server.outdated);
 	}
 	// If outdated is present, filter out uptodate servers
 	if (filters.outdated) {
-		for (const key in output.servers) {
-			if (!output.servers[key].outdated) {
-				delete output.servers[key];
-			}
-		}
+		filterObject(output.servers, (server) => server.outdated);
 	}
 
 	// Return filtered servers
