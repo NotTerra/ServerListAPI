@@ -42,6 +42,12 @@ var serverList = {
 	offline: {}
 }
 
+const DLCs = [
+	"Weapons",
+	"Arid",
+	"Space",
+	"Unknown", // For future proofing
+];
 
 BigInt.prototype.toJSON = function () {
 	return this.toString()
@@ -62,67 +68,28 @@ servers = [];
 
 // Make DLC bitfield from dlc array, same outputs as splitKeyword in reverse, inputs in an array are 1 = Weapons, 2 = Arid, 3 = Space, figure out the output based on an array of inputs, so an input if [3] would be "6" and so on
 function calculateDLCNumber(array) {
-	array = array.map(Number); // Ensure all are numbers
-	array.sort(); // Sort array to have lowest values first
-
-	if (array.length === 1) {
-		if (array[0] === 1) { // Weapons
-			return "1";
-		} else if (array[0] === 2) { // Arid
-			return "2";
-		} else if (array[0] === 3) { // Space
-			return "6";
-		}
-	} else if (array.length === 2) {
-		if (array.includes(1) && array.includes(2)) { // Weapons + Arid
-			return "3";
-		} else if (array.includes(1) && array.includes(3)) { // Weapons + Space
-			return "5";
-		} else if (array.includes(2) && array.includes(3)) { // Arid + Space
-			return "4";
-		}
-	} else if (array.length === 3) {
-		if (array.includes(1) && array.includes(2) && array.includes(3)) { // Weapons + Arid + Space
-			return "7";
-		}
-	} else {
-		return 0; // Not a valid combination
-	}
+	array = array.map((number) => {
+		// 1 -> 1, 2 -> 2, 3 -> 4
+		return Math.pow(2, parseInt(number) - 1)
+	});
+	// Or all bitflags, producing the final number
+	return array.reduce((a, b) => a | b, 0);
 }
-
-
 
 // Keyword split to version, dlcs, tps
 function splitKeyword(keyword) {
 	data = keyword.split("-")
-	switch (data[1]) {
-		case "0":
-			dlcString = "None"
-			break;
-		case "1":
-			dlcString = "Weapons"
-			break;
-		case "2":
-			dlcString = "Arid"
-			break;
-		case "3":
-			dlcString = "Weapons + Arid"
-			break;
-		case "4":
-			dlcString = "Arid + Space"
-			break;
-		case "5":
-			dlcString = "Weapons + Space"
-			break;
-		case "6":
-			dlcString = "Space"
-			break;
-		case "7":
-			dlcString = "Weapons + Arid + Space"
-			break;
-		default:
-			break;
+	let dlcFlags = parseInt(data[1]);
+	let dlcComponents = DLCs.filter((name, idx) => {
+		// no need to subtract 1, as idx is 0 based
+		// idx 0 -> flag 1 -> Weapons
+		// idx 2 -> flag 4 -> Space
+		return Math.pow(2, idx) & dlcFlags
+	});
+	if (dlcComponents.length === 0) {
+		dlcComponents.push("None");
 	}
+	let dlcString = dlcComponents.join(" + ");
 	// if (data[0] >= "v1.3.0") {
 	// 	return {
 	// 		"version": data[0],
