@@ -66,6 +66,17 @@ var removeDuplicates = function (nums) {
 };
 servers = [];
 
+// Log a message, logs with loglevel INFO by default
+function log(message, level) {
+	level = level || "INFO";
+	let toColor = `[${level} ${new Date()}]`;
+	let colored = colors.cyan(toColor);
+	if (level === "ERROR") {
+		colored = colors.red(toColor);
+	}
+	console.log(`${colored} ${message}`);
+}
+
 // Make DLC bitfield from dlc array, same outputs as splitKeyword in reverse, inputs in an array are 1 = Weapons, 2 = Arid, 3 = Space, figure out the output based on an array of inputs, so an input if [3] would be "6" and so on
 function calculateDLCNumber(array) {
 	array = array.map((number) => {
@@ -190,67 +201,72 @@ function objectLength(object) {
 	return length;
 };
 
+// Gets a server list entry for a bad server
+function getBadServer(address, reason) {
+	let [ip_address, port] = address.split(":")
+	return {
+		"error": reason,
+		"name": "Unknown",
+		"address": ip_address,
+		"port": port,
+		"version": "Unknown",
+		"dlc": 0,
+		"dlcString": "Unknown",
+		"tps": 0,
+		"players": 0,
+		"maxPlayers": 0,
+		"map": "Unknown",
+		"gameId": "573090"
+	};
+}
+
 // checkServer function
 function checkServer(address) {
-	Steam.queryGameServerInfo(address).then(data => {
-		// Write data to file name as server name
-		//fs.writeFileSync(`./servers/srv_${data.name}.json`, JSON.stringify(data, null, 2));
-		data.keywords.split("-")
-		data.address = address.split(":");
-		data.serverInfo = splitKeyword(data.keywords);
+	return Steam.queryGameServerInfo(address).then(data => {
+		if (data.gameId != "573090") {
+			return getBadServer(address, "Not a Stormworks server");
+		}
+		let [ip_address, port] = address.split(":");
+		let serverInfo = splitKeyword(data.keywords);
 		// Calculate outdated status, cant use less than anymore because of the way semver works and 1.10.0 appears as less than 1.9.9
-		outdated = semver.lt(data.serverInfo.version, serverList.highestVersion) ? true : false;
-		output = {
+		let outdated = semver.lt(serverInfo.version, serverList.highestVersion);
+		return {
 			"name": data.name,
-			"address": data.address[0],
-			"port": data.address[1],
-			"password": data.visibility == 1 ? true : false,
-			"version": data.serverInfo.version,
+			"address": ip_address,
+			"port": port,
+			"password": data.visibility == 1,
+			"version": serverInfo.version,
 			"outdated": outdated,
-			"dlc": data.serverInfo.dlc,
-			"dlcString": data.serverInfo.dlcString,
-			"tps": data.serverInfo.tps,
+			"dlc": serverInfo.dlc,
+			"dlcString": serverInfo.dlcString,
+			"tps": serverInfo.tps,
 			"players": data.bots,
 			"maxPlayers": data.maxPlayers,
 			"map": data.map,
 			"gameId": data.gameId,
 			"lastUpdated": new Date()
-		}
-		// Check if server is in errored list or offline list, if so, remove it
-		if (serverList.errored[address]) {
-			delete serverList.errored[address];
-		}
-		if (serverList.offline[address]) {
-			delete serverList.offline[address];
-		}
-		// Add server to server list
-		serverList.servers[address] = output;
-		return output;
+		};
 	}).catch((err) => {
-		output = {
-			"error": "Could not connect to server",
-			"name": "Unknown",
-			"address": address.split(":")[0],
-			"port": address.split(":")[1],
-			"version": "Unknown",
-			"dlc": 0,
-			"dlcString": "Unknown",
-			"tps": 0,
-			"players": 0,
-			"maxPlayers": 0,
-			"map": "Unknown",
-			"gameId": "573090"
+		return getBadServer(address, "Could not connect to server");
+	}).then((entry) => {
+		delete serverList.offline[address];
+		//console.log(address, JSON.stringify(entry))
+		if ('error' in entry) {
+			delete serverList.servers[address];
+			serverList.errored[address] = entry;
+		} else {
+			delete serverList.errored[address];
+			serverList.servers[address] = entry;
 		}
-		serverList.errored[address] = output;
-		return output;
-	});
+		return entry
+	});;
 }
 
 var highestVersion = "v0.0.0";
 
 // findHighestVersion function
 function findHighestVersion() {
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Finding highest version...`);
+	log("Finding highest version...");
 	for (const key in serverList.servers) {
 		if (serverList.servers.hasOwnProperty(key)) {
 			const currentVersion = serverList.servers[key].version;
@@ -261,7 +277,7 @@ function findHighestVersion() {
 			}
 		}
 	}
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Highest version is ${highestVersion}`);
+	log(`Highest version is ${highestVersion}`);
 	return highestVersion;
 }
 
@@ -269,7 +285,7 @@ var lowestVersion = 'v999.999.999';
 
 // findLowestVersion function
 function findLowestVersion() {
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Finding lowest version...`);
+	log("Finding lowest version...");
 	for (const key in serverList.servers) {
 		if (serverList.servers.hasOwnProperty(key)) {
 			const currentVersion = serverList.servers[key].version;
@@ -280,7 +296,7 @@ function findLowestVersion() {
 			}
 		}
 	}
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Lowest version is ${lowestVersion}`);
+	log(`Lowest version is ${lowestVersion}`);
 	return lowestVersion;
 }
 
@@ -288,7 +304,7 @@ var outdatedServers = 0;
 
 // countOutdatedServers function, counts servers that are outdated
 function countOutdatedServers() {
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Counting outdated servers, latest version is ${highestVersion}`);
+	log(`Counting outdated servers, latest version is ${highestVersion}`);
 	outdatedServers = 0;
 	for (var key in serverList.servers) {
 		if (serverList.servers.hasOwnProperty(key)) {
@@ -297,7 +313,7 @@ function countOutdatedServers() {
 			}
 		}
 	}
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} ${outdatedServers} servers are outdated!`);
+	log(`${outdatedServers} servers are outdated!`);
 	return outdatedServers;
 };
 
@@ -306,44 +322,44 @@ var versions = {};
 
 // Track server versions
 function countVersions() {
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Counting server versions...`);
+	log("Counting server versions...");
 	const versions = {};
 	for (const key in serverList.servers) {
 		const server = serverList.servers[key];
 		versions[server.version] = (versions[server.version] || 0) + 1;
 	}
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} ${Object.keys(versions).length} versions found!`);
+	log(`${Object.keys(versions).length} versions found!`);
 	return versions;
 }
 
 // updateMasterList function
 function updateMasterList() {
 	// Get master list
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Getting master list...`);
+	log("Getting master list...");
 	Steam.queryMasterServer('hl2master.steampowered.com:27011', Steam.REGIONS.ALL, {
 		appid: 573090,
 		game: "Stormworks",
 	}, 1000, 400).then(servers => {
 		servers = removeDuplicates(servers);
-		console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Got master list!`);
+		log("Got master list!");
 		masterList.servers = servers;
 		masterList.lastUpdated = new Date();
 		updateServerList();
 	}).catch((err) => {
-		console.log(`${colors.red(`[ERROR ${new Date()}]`)} Error updating master list: ${err}`);
+		log(`Error updating master list: ${err}`, "ERROR");
 	});
 }
 
 // updateServerList function
 function updateServerList() {
 	// Get every server in master list
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Getting server list...`);
-	for (let i = 0; i < masterList.servers.length; i++) {
+	log("Getting server list...");
+	for (let address of masterList.servers) {
 		// Get server info
-		checkServer(masterList.servers[i]);
+		checkServer(address);
 		serverList.lastUpdated = new Date();
 	}
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Got server list!`);
+	log("Got server list!");
 	setTimeout(() => {
 		purgeDeadServers();
 		serverList.serverCount = objectLength(serverList.servers);
@@ -358,13 +374,13 @@ function updateServerList() {
 // purgeDeadServers function, moves dead servers to offline list
 function purgeDeadServers() {
 	let counter = 0;
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Purging dead servers...`);
+	log("Purging dead servers...");
 	for (var key in serverList.servers) {
 		if (serverList.servers.hasOwnProperty(key)) {
 			if (serverList.servers[key].lastUpdated < new Date(new Date().getTime() - 60000)) {
 				serverList.offline[key] = serverList.servers[key];
 				delete serverList.servers[key];
-				console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Server ${key} is offline!`);
+				log(`Server ${key} is offline!`);
 				// If server somehow got into errored list, remove it
 				if (serverList.errored[key]) {
 					delete serverList.errored[key];
@@ -373,13 +389,13 @@ function purgeDeadServers() {
 			}
 		}
 	}
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Purged ${counter} dead servers!`);
+	log(`Purged ${counter} dead servers!`);
 }
 
 // Startup messages
-console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Starting Stormworks Server List...`);
-console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Config: ${JSON.stringify(config)}`);
-console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Commit: ${getGitCommitDetails().hash}`);
+log("Starting Stormworks Server List...");
+log(`Config: ${JSON.stringify(config)}`);
+log(`Commit: ${getGitCommitDetails().hash}`);
 
 // Update master list every 1 minute
 setInterval(() => {
@@ -409,7 +425,7 @@ if (config.rateLimiterEnabled) {
 			});
 			if (req.rateLimit.remaining === 0 && !rateLimiterWarnings.has(ip)) {
 				rateLimiterWarnings.add(ip);
-				console.log(`${colors.red(`[ERROR ${new Date()}]`)} ${req.headers["user-agent"]}@${ip} exceeded rate limit!`);
+				log(`${req.headers["user-agent"]}@${ip} exceeded rate limit!`, "ERROR");
 				setTimeout(() => rateLimiterWarnings.delete(ip), req.rateLimit.resetTime - Date.now());
 			}
 		}
@@ -424,55 +440,22 @@ app.get('/check', (req, res) => {
 			"error": "Missing required parameter: address"
 		});
 		return;
-	};
+	}
 	// Regex for IP address : port
+	// Note: this regex may match invalid addresses, like 999.999.999.999:99999
 	const ipRegex = /(?:[0-9]{1,3}\.){3}[0-9]{1,3}:[0-9]{1,5}/;
 	// Check ip argument is valid
 	if (ipRegex.test(req.query.address)) {
-		console.log(`${colors.cyan(`[INFO ${new Date()}]`)} ${req.headers["user-agent"]}@${req.ip} requested check server ${req.query.address}`);
-		console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Checking server ${req.query.address}`);
-		Steam.queryGameServerInfo(req.query.address).then(data => {
-			// Check if server is not running Stormworks, in which case, someone is trying to be funny
-			if (data.gameId != "573090") {
-				res.status(418).send({
-					"error": "A server was found, but it is not running Stormworks"
-				});
-				console.log(`${colors.red(`[ERROR ${new Date()}]`)} Server ${req.query.address} is not running Stormworks! (AppID: ${data.appid})`);
-				return;
+		log(`${req.headers["user-agent"]}@${req.ip} requested check server ${req.query.address}`);
+		log(`Checking server ${req.query.address}`);
+		checkServer(req.query.address).then((data) => {
+			if ("error" in data) {
+				res.status(500).send({
+					"error": data.error
+				})
+			} else {
+				res.setHeader("Content-Type", "application/json").send(JSON.stringify(data));
 			}
-			data.keywords.split("-")
-			data.address = req.query.address.split(":");
-			data.serverInfo = splitKeyword(data.keywords);
-
-			output = {
-				"name": data.name,
-				"address": data.address[0],
-				"port": data.address[1],
-				"password": data.visibility == 1 ? false : true,
-				"version": data.serverInfo.version,
-				"outdated": data.serverInfo.version < serverList.highestVersion ? true : false,
-				"dlc": data.serverInfo.dlc,
-				"dlcString": data.serverInfo.dlcString,
-				"tps": data.serverInfo.tps,
-				"players": data.bots,
-				"maxPlayers": data.maxPlayers,
-				"map": data.map,
-				"gameId": data.gameId,
-				"lastUpdated": new Date()
-			}
-			// Check if server is in errored list or offline list, if so, remove it
-			if (serverList.errored[req.query.address]) {
-				delete serverList.errored[req.query.address];
-			}
-			if (serverList.offline[req.query.address]) {
-				delete serverList.offline[req.query.address];
-			}
-			// Add server to server list
-			serverList.servers[req.query.address] = output;
-			res.setHeader("Content-Type", "application/json").send(JSON.stringify(output));
-		}).catch(err => {
-			console.log(err)
-			res.status(500).send(`Could not query server: ${err}`);
 		});
 	} else {
 		res.status(400).send("Invalid Server Address, must be in the format IP:PORT")
@@ -484,13 +467,21 @@ app.get('/check', (req, res) => {
 // 	res.setHeader("Content-Type", "application/json").send(JSON.stringify(masterList));
 // });
 
+// Filter elements from an object, based on a closure
+function filterObject(object, filter) {
+	for (const key in object) {
+		if (!filter(object[key])) {
+			delete object[key];
+		}
+	}
+}
+
 app.get('/serverList', (req, res) => {
 	// check if ?filter is present, if so filter servers with other variables like ?uptodate=true or ?version=v1.10.0
 	// make the output variable a copy of serverList, not serverList itself, as to not modify the original object
 	output = JSON.parse(JSON.stringify(serverList));
 
 	filters = req.query;
-	console.log(filters)
 	// valid filters, uptodate, outdated, version, dlc
 	// valid values for version, v1.10.0, v1.9.9, etc
 
@@ -507,52 +498,34 @@ app.get('/serverList', (req, res) => {
 	}
 	// If version is present, split by = and check if it's a valid version
 	if (filters.version) {
-		versionFilter = filters.version;
-		if (!semver.valid(versionFilter)) {
+		let versionFilter = filters.version;
+		if (!semver.valid(versionFilter) || !versionFilter.startsWith('v')) {
 			res.status(400).json({
 				"error": "Invalid version"
 			})
 			return;
 		}
-		for (const key in output.servers) {
-			if (output.servers[key].version != versionFilter) {
-				delete output.servers[key];
-			}
-		}
+		filterObject(output.servers, (server) => server.version === versionFilter);
 	}
 	// If dlc is present, split by = and check if it's a valid dlc
 	if (filters.dlc) {
-		dlcFilter = filters.dlc;
+		let dlcFilter = filters.dlc;
 		if (!dlcFilter.match(/^(0|1|2|3|1\|2|1\|3|2\|3|1\|2\|3)$/)) {
 			res.status(400).json({
 				"error": "Invalid dlc"
 			})
 			return;
 		}
-		console.log(calculateDLCNumber(dlcFilter.split("|")))
-		for (const key in output.servers) {
-			if (output.servers[key].dlc != calculateDLCNumber(dlcFilter.split("|"))) {
-				delete output.servers[key];
-			}
-		}
+		let DLCNumber = calculateDLCNumber(dlcFilter.split("|")) + "";
+		filterObject(output.servers, (server) => server.dlc === DLCNumber);
 	}
 	// For all filters, remember that output.servers is an object, so .filter wont work
 	if (filters.uptodate) {
-		console.log("Deleting outdated servers")
-		for (const key in output.servers) {
-			if (output.servers[key].outdated) {
-				console.log(`Deleting ${key}`)
-				delete output.servers[key];
-			}
-		}
+		filterObject(output.servers, (server) => !server.outdated);
 	}
 	// If outdated is present, filter out uptodate servers
 	if (filters.outdated) {
-		for (const key in output.servers) {
-			if (!output.servers[key].outdated) {
-				delete output.servers[key];
-			}
-		}
+		filterObject(output.servers, (server) => server.outdated);
 	}
 
 	// Return filtered servers
@@ -595,5 +568,5 @@ app.get('/robots.txt', (req, res) => {
 });
 
 app.listen(port, () => {
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Server started on port ${port}`);
+	log(`Server started on port ${port}`);
 });
