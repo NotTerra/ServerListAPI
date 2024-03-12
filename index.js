@@ -494,7 +494,6 @@ app.get('/serverList', (req, res) => {
 			})
 			return;
 		}
-		console.log(versionFilter);
 		filterObject(output.servers, (server) => server.version === versionFilter);
 	}
 	// If dlc is present, split by = and check if it's a valid dlc
