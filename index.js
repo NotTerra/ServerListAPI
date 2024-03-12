@@ -66,6 +66,17 @@ var removeDuplicates = function (nums) {
 };
 servers = [];
 
+// Log a message, logs with loglevel INFO by default
+function log(message, level) {
+	level = level || "INFO";
+	let toColor = `[${level} ${new Date()}]`;
+	let colored = colors.cyan(toColor);
+	if (level === "ERROR") {
+		colored = colors.red(toColor);
+	}
+	console.log(`${colored} ${message}`);
+}
+
 // Make DLC bitfield from dlc array, same outputs as splitKeyword in reverse, inputs in an array are 1 = Weapons, 2 = Arid, 3 = Space, figure out the output based on an array of inputs, so an input if [3] would be "6" and so on
 function calculateDLCNumber(array) {
 	array = array.map((number) => {
@@ -255,7 +266,7 @@ var highestVersion = "v0.0.0";
 
 // findHighestVersion function
 function findHighestVersion() {
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Finding highest version...`);
+	log("Finding highest version...");
 	for (const key in serverList.servers) {
 		if (serverList.servers.hasOwnProperty(key)) {
 			const currentVersion = serverList.servers[key].version;
@@ -266,7 +277,7 @@ function findHighestVersion() {
 			}
 		}
 	}
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Highest version is ${highestVersion}`);
+	log(`Highest version is ${highestVersion}`);
 	return highestVersion;
 }
 
@@ -274,7 +285,7 @@ var lowestVersion = 'v999.999.999';
 
 // findLowestVersion function
 function findLowestVersion() {
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Finding lowest version...`);
+	log("Finding lowest version...");
 	for (const key in serverList.servers) {
 		if (serverList.servers.hasOwnProperty(key)) {
 			const currentVersion = serverList.servers[key].version;
@@ -285,7 +296,7 @@ function findLowestVersion() {
 			}
 		}
 	}
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Lowest version is ${lowestVersion}`);
+	log(`Lowest version is ${lowestVersion}`);
 	return lowestVersion;
 }
 
@@ -293,7 +304,7 @@ var outdatedServers = 0;
 
 // countOutdatedServers function, counts servers that are outdated
 function countOutdatedServers() {
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Counting outdated servers, latest version is ${highestVersion}`);
+	log(`Counting outdated servers, latest version is ${highestVersion}`);
 	outdatedServers = 0;
 	for (var key in serverList.servers) {
 		if (serverList.servers.hasOwnProperty(key)) {
@@ -302,7 +313,7 @@ function countOutdatedServers() {
 			}
 		}
 	}
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} ${outdatedServers} servers are outdated!`);
+	log(`${outdatedServers} servers are outdated!`);
 	return outdatedServers;
 };
 
@@ -311,44 +322,44 @@ var versions = {};
 
 // Track server versions
 function countVersions() {
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Counting server versions...`);
+	log("Counting server versions...");
 	const versions = {};
 	for (const key in serverList.servers) {
 		const server = serverList.servers[key];
 		versions[server.version] = (versions[server.version] || 0) + 1;
 	}
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} ${Object.keys(versions).length} versions found!`);
+	log(`${Object.keys(versions).length} versions found!`);
 	return versions;
 }
 
 // updateMasterList function
 function updateMasterList() {
 	// Get master list
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Getting master list...`);
+	log("Getting master list...");
 	Steam.queryMasterServer('hl2master.steampowered.com:27011', Steam.REGIONS.ALL, {
 		appid: 573090,
 		game: "Stormworks",
 	}, 1000, 400).then(servers => {
 		servers = removeDuplicates(servers);
-		console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Got master list!`);
+		log("Got master list!");
 		masterList.servers = servers;
 		masterList.lastUpdated = new Date();
 		updateServerList();
 	}).catch((err) => {
-		console.log(`${colors.red(`[ERROR ${new Date()}]`)} Error updating master list: ${err}`);
+		log(`Error updating master list: ${err}`, "ERROR");
 	});
 }
 
 // updateServerList function
 function updateServerList() {
 	// Get every server in master list
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Getting server list...`);
+	log("Getting server list...");
 	for (let address of masterList.servers) {
 		// Get server info
 		checkServer(address);
 		serverList.lastUpdated = new Date();
 	}
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Got server list!`);
+	log("Got server list!");
 	setTimeout(() => {
 		purgeDeadServers();
 		serverList.serverCount = objectLength(serverList.servers);
@@ -363,13 +374,13 @@ function updateServerList() {
 // purgeDeadServers function, moves dead servers to offline list
 function purgeDeadServers() {
 	let counter = 0;
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Purging dead servers...`);
+	log("Purging dead servers...");
 	for (var key in serverList.servers) {
 		if (serverList.servers.hasOwnProperty(key)) {
 			if (serverList.servers[key].lastUpdated < new Date(new Date().getTime() - 60000)) {
 				serverList.offline[key] = serverList.servers[key];
 				delete serverList.servers[key];
-				console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Server ${key} is offline!`);
+				log(`Server ${key} is offline!`);
 				// If server somehow got into errored list, remove it
 				if (serverList.errored[key]) {
 					delete serverList.errored[key];
@@ -378,13 +389,13 @@ function purgeDeadServers() {
 			}
 		}
 	}
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Purged ${counter} dead servers!`);
+	log(`Purged ${counter} dead servers!`);
 }
 
 // Startup messages
-console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Starting Stormworks Server List...`);
-console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Config: ${JSON.stringify(config)}`);
-console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Commit: ${getGitCommitDetails().hash}`);
+log("Starting Stormworks Server List...");
+log(`Config: ${JSON.stringify(config)}`);
+log(`Commit: ${getGitCommitDetails().hash}`);
 
 // Update master list every 1 minute
 setInterval(() => {
@@ -414,7 +425,7 @@ if (config.rateLimiterEnabled) {
 			});
 			if (req.rateLimit.remaining === 0 && !rateLimiterWarnings.has(ip)) {
 				rateLimiterWarnings.add(ip);
-				console.log(`${colors.red(`[ERROR ${new Date()}]`)} ${req.headers["user-agent"]}@${ip} exceeded rate limit!`);
+				log(`${req.headers["user-agent"]}@${ip} exceeded rate limit!`, "ERROR");
 				setTimeout(() => rateLimiterWarnings.delete(ip), req.rateLimit.resetTime - Date.now());
 			}
 		}
@@ -435,8 +446,8 @@ app.get('/check', (req, res) => {
 	const ipRegex = /(?:[0-9]{1,3}\.){3}[0-9]{1,3}:[0-9]{1,5}/;
 	// Check ip argument is valid
 	if (ipRegex.test(req.query.address)) {
-		console.log(`${colors.cyan(`[INFO ${new Date()}]`)} ${req.headers["user-agent"]}@${req.ip} requested check server ${req.query.address}`);
-		console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Checking server ${req.query.address}`);
+		log(`${req.headers["user-agent"]}@${req.ip} requested check server ${req.query.address}`);
+		log(`Checking server ${req.query.address}`);
 		checkServer(req.query.address).then((data) => {
 			if ("error" in data) {
 				res.status(500).send({
@@ -557,5 +568,5 @@ app.get('/robots.txt', (req, res) => {
 });
 
 app.listen(port, () => {
-	console.log(`${colors.cyan(`[INFO ${new Date()}]`)} Server started on port ${port}`);
+	log(`Server started on port ${port}`);
 });
